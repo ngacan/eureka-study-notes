@@ -1,29 +1,32 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
-    "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "allowJs": false,
     "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
+    "esModuleInterop": false,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
     "moduleResolution": "bundler",
+    "resolveJsonModule": true,
     "isolatedModules": true,
-    "moduleDetection": "force",
-    "allowJs": true,
+    "noEmit": true,
     "jsx": "react-jsx",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
-    "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    "rootDir": "src",
+
+    // ✅ DÒNG QUAN TRỌNG
+    "types": ["vite/client"]
+  },
+
+  // ✅ ĐẢM BẢO include đúng cả src VÀ vite-env.d.ts Ở THƯ MỤC GỐC
+  "include": [
+  "src",
+  "vite-env.d.ts",
+  "global.d.ts",
+  "src/types/**/*.ts"
+],
+"references": [{ "path": "./tsconfig.node.json" },]
 }

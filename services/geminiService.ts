@@ -1,13 +1,23 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Note, ProgressAnalysis, SUBJECT_KEYS, DIFFICULTY_KEYS } from '../types';
 
-// FIX: Per coding guidelines, the API key must be obtained directly from process.env.API_KEY.
-// We assume it's pre-configured and valid in the execution environment.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+// FIX: Adhere to coding guidelines by using process.env.API_KEY to access the API key.
+// This resolves the TypeScript error and aligns with the project's requirements.
+const apiKey = process.env.API_KEY;
+if (!apiKey) {
+    // FIX: Updated error message to reflect the use of API_KEY.
+    console.error("API_KEY is not defined. Please set it in your environment variables.");
+}
+const ai = new GoogleGenAI({ apiKey: apiKey as string });
+
 
 export const analyzeMistakes = async (notes: Note[]): Promise<string> => {
   if (notes.length === 0) {
     return "Chưa có ghi chú nào để phân tích. Hãy thêm ghi chú trước nhé!";
+  }
+  if (!apiKey) {
+    // FIX: Updated error message to reflect the use of API_KEY.
+    return "Lỗi cấu hình: API_KEY chưa được thiết lập. Vui lòng kiểm tra lại cấu hình trên server hosting của bạn.";
   }
   try {
     const simplifiedNotes = notes.map(({ subject, lesson, mistake, correction, source }) => ({ subject, lesson, mistake, correction, source }));
@@ -33,7 +43,17 @@ export const analyzeMistakes = async (notes: Note[]): Promise<string> => {
     return response.text;
   } catch (error) {
     console.error("Error analyzing mistakes with Gemini API:", error);
-    return "Xin lỗi, tôi không thể phân tích các lỗi sai lúc này. Có thể đã xảy ra sự cố với dịch vụ AI. Vui lòng thử lại sau.";
+    let errorMessage = "Xin lỗi, tôi không thể phân tích các lỗi sai lúc này. Có thể đã xảy ra sự cố với dịch vụ AI.";
+    if (error instanceof Error) {
+        if (error.message.includes('API key not valid')) {
+            errorMessage = "Lỗi xác thực: API Key của bạn không hợp lệ. Vui lòng kiểm tra lại cấu hình biến môi trường trên server.";
+        } else if (error.message.includes('permission denied') || error.message.includes('PERMISSION_DENIED')) {
+            errorMessage = "Lỗi quyền truy cập: API Key của bạn không có quyền sử dụng Gemini API. Hãy chắc chắn rằng bạn đã bật 'Generative Language API' trong dự án Google Cloud của mình và cho phép tên miền của trang web truy cập.";
+        } else if (error.message.includes('400')) {
+             errorMessage = "Lỗi yêu cầu: Dữ liệu gửi đến AI có thể không hợp lệ. Vui lòng thử lại. Nếu sự cố vẫn tiếp diễn, có thể có lỗi trong prompt được tạo.";
+        }
+    }
+    return errorMessage + " Vui lòng thử lại sau.";
   }
 };
 
@@ -46,6 +66,14 @@ export const analyzeProgress = async (notes: Note[]): Promise<ProgressAnalysis> 
 
     if (notes.length === 0) {
         return fallbackResult;
+    }
+    if (!apiKey) {
+        return {
+            // FIX: Updated error message to reflect the use of API_KEY.
+            evaluation: "Lỗi cấu hình: API_KEY chưa được thiết lập. Vui lòng kiểm tra lại cấu hình trên server hosting của bạn.",
+            chartDataByDifficulty: [],
+            chartDataBySubject: [],
+        };
     }
     try {
         const notesForAnalysis = notes.map(({ createdAt, difficulty, subject }) => ({ createdAt, difficulty, subject }));
@@ -128,8 +156,20 @@ export const analyzeProgress = async (notes: Note[]): Promise<ProgressAnalysis> 
 
     } catch (error) {
         console.error("Error analyzing progress with Gemini API:", error);
+        let evaluationMessage = "Xin lỗi, tôi không thể phân tích tiến độ của bạn lúc này. Có thể đã xảy ra sự cố với dịch vụ AI.";
+        if (error instanceof Error) {
+            if (error.message.includes('API key not valid')) {
+                evaluationMessage = "Lỗi xác thực: API Key của bạn không hợp lệ. Vui lòng kiểm tra lại cấu hình biến môi trường trên server.";
+            } else if (error.message.includes('permission denied') || error.message.includes('PERMISSION_DENIED')) {
+                 evaluationMessage = "Lỗi quyền truy cập: API Key của bạn không có quyền sử dụng Gemini API. Hãy chắc chắn rằng bạn đã bật 'Generative Language API' trong dự án Google Cloud của mình và cho phép tên miền của trang web truy cập.";
+            } else if (error instanceof SyntaxError || error.message.includes('JSON')) {
+                evaluationMessage = "Lỗi phân tích dữ liệu: AI đã trả về một định dạng JSON không hợp lệ. Điều này có thể xảy ra tạm thời, vui lòng thử phân tích lại.";
+            } else if (error.message.includes('400')) {
+                evaluationMessage = "Lỗi yêu cầu: Dữ liệu gửi đến AI có thể không hợp lệ. Vui lòng thử lại. Nếu sự cố vẫn tiếp diễn, có thể có lỗi trong prompt được tạo.";
+            }
+        }
         return { 
-            evaluation: "Xin lỗi, tôi không thể phân tích tiến độ của bạn lúc này. Có thể đã xảy ra sự cố với dịch vụ AI. Vui lòng thử lại.",
+            evaluation: evaluationMessage + " Vui lòng thử lại.",
             chartDataByDifficulty: [],
             chartDataBySubject: [],
         };

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { SubjectKey, DifficultyKey } from './types';
 import { MathIcon, ScienceIcon, HistoryIcon, LiteratureIcon, CodeIcon, EnglishIcon, OtherIcon } from './components/icons';

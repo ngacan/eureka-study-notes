@@ -31,19 +31,23 @@
 //
 // =====================================================================================
 
+// src/config/firebaseConfig.js
+
 export const firebaseConfig = {
-  apiKey: "AIzaSyBYN6xzBxYgMlfTI5CyYfBKi9SJ7UVZ8-s",
-  authDomain: "eureka---from-error-to-hero.firebaseapp.com",
-  projectId: "eureka---from-error-to-hero",
-  storageBucket: "eureka---from-error-to-hero.firebasestorage.app",
-  messagingSenderId: "864263309697",
-  appId: "1:864263309697:web:6004835b7d9a3e069a0080",
-  measurementId: "G-8ZDN5PXJEM",
-  // **QUAN TRỌNG**: Thêm giá trị này từ Google Cloud Console (xem hướng dẫn ở trên)
-  googleClientId: "864263309697-oh78jn2i4sd6pqf74ioa7fldb6vhjutb.apps.googleusercontent.com" 
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "",
+  googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || ""
 };
 
-// Kiểm tra xem cấu hình có phải là giá trị mặc định không
-export const isFirebaseConfigured = firebaseConfig.apiKey !== "YOUR_API_KEY_HERE";
-// Kiểm tra xem Google Client ID có được cấu hình không
-export const isGoogleClientConfigured = firebaseConfig.googleClientId !== "YOUR_GOOGLE_WEB_CLIENT_ID.apps.googleusercontent.com";
+// ✅ Kiểm tra cấu hình Firebase có đầy đủ không
+export const isFirebaseConfigured = Boolean(
+  firebaseConfig.apiKey && firebaseConfig.projectId
+);
+
+// ✅ Kiểm tra Google Client ID
+export const isGoogleClientConfigured = Boolean(firebaseConfig.googleClientId);
