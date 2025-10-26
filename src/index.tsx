@@ -1,4 +1,4 @@
-console.log("✅ ENV loaded:", import.meta.env.VITE_FIREBASE_API_KEY);
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
