@@ -150,13 +150,30 @@ const App: React.FC = () => {
     setView('new_note');
   }
 
-  import { exportNotesToPdf } from "./utils/exportNotesToPdf";
+  const handleExport = async (selectedNotes?: Note[]) => {
+    const toExport = selectedNotes && selectedNotes.length ? selectedNotes : notes;
+    try {
+      const mod = await import("./utils/exportNotesToPdf");
+      await mod.exportNotesToPdf(toExport);
+    } catch (err) {
+      console.error("Export failed", err);
+      alert("Không thể xuất PDF. Xem console.");
+    }
+  };
 
-const handleExport = (notesToExport: any) => {
-  exportNotesToPdf(notesToExport);
-};
+  const handleAnalyze = async (filteredNotes: Note[]) => {
+    try {
+      // gọi service analyzeProgress (server or client as implemented)
+      const { analyzeProgress } = await import("./services/geminiService");
+      const result = await analyzeProgress(filteredNotes);
+      // Hiện kết quả tạm: alert hoặc bạn có thể render modal để hiển thị chi tiết
+      alert("Kết quả phân tích: " + (result?.evaluation ? result.evaluation : JSON.stringify(result)));
+    } catch (err) {
+      console.error("Analyze error", err);
+      alert("Phân tích lỗi. Xem console.");
+    }
+  };
 
-  
   const handleSignOut = async () => {
     try {
         await signOutUser();
@@ -169,15 +186,18 @@ const handleExport = (notesToExport: any) => {
 
   const MainContent: React.FC = () => {
     switch (view) {
-      case 'new_note':
-        return <NoteForm onSave={handleSaveNote} onCancel={() => { setEditingNote(null); setView('notes'); }} existingNote={editingNote} />;
-      case 'edit_note':
-        return <NoteForm onSave={handleSaveNote} onCancel={() => { setEditingNote(null); setView('notes'); }} existingNote={editingNote} />;
-      case 'dashboard':
-        return <Dashboard notes={notes} onExport={handleExport} isExporting={false} />;
-      case 'notes':
+      case "dashboard":
+        return <Dashboard notes={notes} onAnalyze={handleAnalyze} />; 
+      case "notes":
       default:
-        return <NoteList notes={notes} onDeleteNote={handleDeleteRequest} onEditNote={handleSetEditing} onCopyNote={handleCopyNote} onNewNote={() => setView('new_note')} />;
+        return (
+          // ...existing notes UI...
+          // đảm bảo NoteList được import và dùng ở đây, truyền handleExport
+          <div>
+            {/* ... possibly Note Form or header ... */}
+            <NoteList notes={notes} onEdit={handleSetEditing} onDelete={handleDeleteRequest} onCopy={handleCopyNote} onExport={handleExport} />
+          </div>
+        );
     }
   };
   
