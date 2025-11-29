@@ -150,9 +150,12 @@ const App: React.FC = () => {
     setView('new_note');
   }
 
-  const handleExport = () => {
-      alert("Chức năng xuất PDF đang được phát triển và sẽ sớm quay trở lại!");
-  }
+  import { exportNotesToPdf } from "./utils/exportNotesToPdf";
+
+const handleExport = (notesToExport: any) => {
+  exportNotesToPdf(notesToExport);
+};
+
   
   const handleSignOut = async () => {
     try {
