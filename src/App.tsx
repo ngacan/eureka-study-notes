@@ -150,11 +150,11 @@ const App: React.FC = () => {
     setView('new_note');
   }
 
-  const handleExport = async (selectedNotes?: Note[]) => {
+  const handleExport = async (selectedNotes?: (Note & { selectedErrorIndexes?: number[] })[]) => {
     const toExport = selectedNotes && selectedNotes.length ? selectedNotes : notes;
     try {
       const mod = await import("./utils/exportNotesToPdf");
-      await mod.exportNotesToPdf(toExport);
+      await mod.exportNotesToPdf(toExport as any[]);
     } catch (err) {
       console.error("Export failed", err);
       alert("Không thể xuất PDF. Xem console.");

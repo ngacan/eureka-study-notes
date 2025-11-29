@@ -145,3 +145,12 @@ export const exportNotesToPdf = (notesParam: ExportNote[] | Note[]) => {
   addFooter(pageNum);
   doc.save(`eureka_notes_${Date.now()}.pdf`);
 };
+
+// Quick checklist / small fixes to ensure reliability:
+// - Ensure assets/NotoSansVietnameseFont.ts exports a base64 TTF default string.
+// - Use addFileToVFS + addFont only if available (already present in your file).
+// - If PDF still shows garbled Vietnamese, supply a valid base64 TTF (NotoSans) and confirm file size > 0.
+// - Ensure NoteList supplies selectedErrorIndexes on each note (you added this).
+// - Ensure page size / margins match: format: [67,130], margin = 1 (mm) — your file already uses these values.
+//
+// If you still get font or content issues, run dev and share the TS / console errors so I can patch further.

@@ -64,63 +64,104 @@ async function safeGenerateContent(prompt: string): Promise<string> {
   return "⚠️ Tất cả model đều không khả dụng lúc này. Hãy thử lại sau.";
 }
 
-// ============================================================================
-// 🎯 1. Phân tích lỗi sai trong ghi chú
-// ============================================================================
+/*
+  Replace direct top-level GoogleGenAI usage with a safe wrapper that:
+  - uses server-side @google/genai when running on Node and API_KEY is present
+  - falls back to calling a /api/genai proxy when running in the browser (recommended)
+*/
+const apiKey = process.env.API_KEY;
 
-export const analyzeMistakes = async (notes: Note[]): Promise<string> => {
-  if (notes.length === 0) {
-    return "Chưa có ghi chú nào để phân tích. Hãy thêm ghi chú trước nhé!";
+async function callGenAi(prompt: string, model = "gemini-2.5-pro", config?: any) {
+  // Server-side: use official SDK when API key is available
+  if (typeof window === "undefined" && apiKey) {
+    const { GoogleGenAI } = await import("@google/genai");
+    const ai = new GoogleGenAI({ apiKey: apiKey as string });
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config,
+    });
+    return response.text;
   }
 
-  const prompt = `
-  Dựa trên các ghi chú học tập sau, hãy đóng vai một huấn luyện viên học tập chuyên nghiệp.
-  Nhiệm vụ của bạn là:
-  1. Nêu 2-3 dạng lỗi sai phổ biến nhất và nguyên nhân gốc rễ.
-  2. Gợi ý 3 chiến lược hoặc bài tập cụ thể để cải thiện.
-  Hãy trả lời ngắn gọn, dễ hiểu, bằng tiếng Việt, có định dạng markdown.
+  // Client-side or no API key: call a server proxy endpoint you must implement (/api/genai)
+  const resp = await fetch("/api/genai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, model, config }),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => "");
+    throw new Error(`GenAI proxy error ${resp.status}: ${txt}`);
+  }
+  const body = await resp.json().catch(() => ({}));
+  return body.text ?? body;
+}
 
-  Dữ liệu ghi chú:
-  ${JSON.stringify(notes, null, 2)}
-  `;
+// Then use callGenAi(...) in analyzeMistakes and analyzeProgress
+export const analyzeMistakes = async (notes: Note[]): Promise<string> => {
+  if (notes.length === 0) return "Chưa có ghi chú nào để phân tích. Hãy thêm ghi chú trước nhé!";
+  try {
+    const prompt = `
+    Dựa trên các ghi chú học tập sau, hãy đóng vai một huấn luyện viên học tập chuyên nghiệp.
+    Nhiệm vụ của bạn là:
+    1. Nêu 2-3 dạng lỗi sai phổ biến nhất và nguyên nhân gốc rễ.
+    2. Gợi ý 3 chiến lược hoặc bài tập cụ thể để cải thiện.
+    Hãy trả lời ngắn gọn, dễ hiểu, bằng tiếng Việt, có định dạng markdown.
 
-  return await safeGenerateContent(prompt);
+    Dữ liệu ghi chú:
+    ${JSON.stringify(notes, null, 2)}
+    `;
+    const text = await callGenAi(prompt, "gemini-2.5-flash");
+    return typeof text === "string" ? text : JSON.stringify(text);
+  } catch (err) {
+    console.error("analyzeMistakes error", err);
+    return "⚠️ Không thể phân tích lỗi. Vui lòng thử lại sau.";
+  }
 };
 
-// ============================================================================
-// 🎯 2. Phân tích tiến độ học tập
-// ============================================================================
-
-export const analyzeProgress = async (
-  notes: Note[]
-): Promise<ProgressAnalysis> => {
-  const fallback: ProgressAnalysis = {
-    evaluation: "Không có dữ liệu để đánh giá tiến độ.",
-    chartDataByDifficulty: [],
-    chartDataBySubject: [],
-  };
-
-  if (notes.length === 0) return fallback;
-
-  const prompt = `
-  Hãy phân tích tiến độ học tập dựa trên các ghi chú sau:
-  - Nhóm ghi chú theo tháng.
-  - Đếm số lượng lỗi theo độ khó và môn học.
-  - Viết đoạn nhận xét động viên ngắn gọn (2–4 câu) về xu hướng học tập.
-  Trả về JSON gồm: "evaluation", "chartDataByDifficulty", "chartDataBySubject".
-
-  Dữ liệu:
-  ${JSON.stringify(notes, null, 2)}
-  `;
-
-  const text = await safeGenerateContent(prompt);
-
-  try {
-    return JSON.parse(text) as ProgressAnalysis;
-  } catch {
+export const analyzeProgress = async (notes: Note[]): Promise<ProgressAnalysis> => {
+  if (notes.length === 0) {
     return {
-      ...fallback,
-      evaluation: "⚠️ AI trả về định dạng không hợp lệ. Vui lòng thử lại sau.",
+      evaluation: "Không có dữ liệu để đánh giá tiến độ.",
+      chartDataByDifficulty: [],
+      chartDataBySubject: [],
+    };
+  }
+  try {
+    const prompt = `
+    Hãy phân tích tiến độ học tập dựa trên các ghi chú sau:
+    - Nhóm ghi chú theo tháng.
+    - Đếm số lượng lỗi theo độ khó và môn học.
+    - Viết đoạn nhận xét động viên ngắn gọn (2–4 câu) về xu hướng học tập.
+    Trả về JSON gồm: "evaluation", "chartDataByDifficulty", "chartDataBySubject".
+
+    Dữ liệu:
+    ${JSON.stringify(notes, null, 2)}
+    `;
+    const config = {
+      responseMimeType: "application/json",
+      // you may include responseSchema when calling server-side SDK
+    };
+    const text = await callGenAi(prompt, "gemini-2.5-pro", config);
+    // try parse JSON safely
+    const trimmed = (text || "").trim();
+    try {
+      const parsed = JSON.parse(trimmed);
+      return parsed as ProgressAnalysis;
+    } catch {
+      return {
+        evaluation: typeof text === "string" ? text : JSON.stringify(text),
+        chartDataByDifficulty: [],
+        chartDataBySubject: [],
+      };
+    }
+  } catch (err) {
+    console.error("analyzeProgress error", err);
+    return {
+      evaluation: "⚠️ Lỗi khi phân tích tiến độ. Vui lòng thử lại.",
+      chartDataByDifficulty: [],
+      chartDataBySubject: [],
     };
   }
 };
